@@ -13,7 +13,7 @@ def main():
     print "Saving treasury tag hash (" + str(len(treasury_tag_hash)) + ") treasuries."
     output_json(treasury_tag_hash, "treasury_tag_hash.json")
     
-    print "Saving listing-treasury hash."
+    print "Saving listing-treasury hash (" + str(len(listing_treasury_hash)) + ") listings."
     output_json(listing_treasury_hash, "listing_treasury_hash.json")
 
 def make_treasury_tag_hash(treasuries):
@@ -33,7 +33,6 @@ def make_listing_treasury_hash(treasuries):
     			listing_treasury_hash[listing_id] = [treasury['id']] 
     return listing_treasury_hash
     	
- 
 def get_object_from_file(file_name):   
     file = open(file_name)
     object = json.load(file)

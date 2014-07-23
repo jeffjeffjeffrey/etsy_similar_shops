@@ -6,20 +6,26 @@ KEYSTRING = "<REMOVED>"
 
 URL_BASE = "https://openapi.etsy.com/v2/"
 
+START = 0
+LIMIT = 25
+TOTAL = 25005
+
 def main():
-    # Get info for 25000 treasuries.
+    # Get info for ~25000 publicly available treasuries.
+    
     print "Getting treasuries."
     start = 0
     total = 25005
     limit = 25
     treasuries = []
-    for offset in range(start, total, limit):
-    	print "Fetching treasuries " + str(offset + 1) + " - " + str(offset + limit)
-    	treasuries += get_treasuries(limit, offset) 
+    for offset in range(START, START + TOTAL, LIMIT):
+    	print "Fetching treasuries " + str(offset + 1) + " - " + str(offset + LIMIT)
+    	treasuries += get_treasuries(LIMIT, offset) 
     	
     print "There were " + str(len(treasuries)) + " treasuries found."  
  
     # Save shop data to a file in json format
+    
     print "Saving outputs."
     output_json(treasuries, "treasuries.json")
   
