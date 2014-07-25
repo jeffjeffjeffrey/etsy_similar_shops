@@ -24,7 +24,7 @@ def main():
       
     # Select a sample of these shops and get listing data from that sample
     
-    shops = shops[:SHOP_SAMPLE_SIZE]
+    shops = shops[:SAMPLE_SIZE]
     
     total_listings = 0
     total_abouts = 0
