@@ -1,55 +1,60 @@
 # etsy_similar_shops
 
 
-Here is some python code for performing tf-idf and LSI similarity tests on Etsy shops based on words found in shop listings and other related sources through the Etsy API.
-
 ## Motivation
 
-The goal of this project was to be able to reasonably determine the five most similar shops for each given shop in a sample of Etsy shops. This is the sort of feature that would have immediate use on the Etsy site. Users who spend a lot of time looking at certain shops could be shown other similar suggested shops to check out. Owners of similar shops could more easily find each other for forming Teams. The categories within Etsy's shop-by-category system could evolve with changing trends through observation and clustering of shops by similarity. The list goes on!
+The goal of this project was to be able to reasonably determine the five most similar shops for each given shop in an Etsy shop sample. This is the sort of feature that would have immediate use on the Etsy site. Users who spend a lot of time looking at certain shops could be shown other similar suggested shops to check out. Owners of similar shops could more easily find each other for forming Teams. The categories within Etsy's shop-by-category system could evolve with changing trends through observation and clustering of shops by similarity. The list goes on!
 
 ## The data
 
-Etsy's shops are filled with publicly available data, and the meaningful parts of these data are largely text. Each shop can be thought of as a text document comprised of the words found in its listings. A listing has lots of fields where meaningful text may reside: tags, titles, descriptions, materials, styles, categories, etc, all can contain useful information for shedding light on the nature of an item and the shop that contains it. But this kind of information is not restricted to a shop's listings. Shops themselves can contain useful descriptions, and shop owners may have meaningful shop-related information in their profiles (such as "favorite materials" or even geographical location). Shop owners may belong to Teams on Etsy, which themselves can contain useful tags. And listings may belong to Treasuries, which have their own sets of tags.
+Due to the variation in how and where shop owners choose to display information about their shops and listings, I chose to incorporate as many concievably relevant fields from the Etsy API as possible into my algorithm. For a given shop, I collected listing tags, title, description, category, style, materials, who_made, when_made, recipient, and occasion. I then went on to collect shop announcement and about information; shop owner profile location information and favorite matierials; tags from teams the shop owner belongs to; and tags from treasuries the shop owner's listings belong to. 
 
-After perusing some Etsy shops it became clear that users place meaningful text in unpredictable places. Lots of folks do use tags to help classify their listings, but many others prefer storing searchable terms in listing titles, or in wordy listing descriptions, which are sometimes in other languages. Some shops prefer to put their info in their shop and not their listings, and others provide virtually no info at all. A great many shops contain only a single listing. To account for all of this I decided to include text from any part of a shop or its associated objects that might be a place where a user could put meaningful information about the nature of that shop. 
+To download 5000 active shops and then save relevant data for a sample of 300, in the command line run
 
-I began by writing the script [get_shops.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_shops.py), which downloads a bunch of shops from the Etsy API, takes a sample of those shops, downloads and attaches various other things related to each of these shops (like listings, shop info, user profiles, and teams), and saves it all to a file in .json format. 
+    python get_shops.py 5000 300 "shops.json"
+    
+This will output to a file shops.json.
 
-#### Treasury trouble
+#### Treasury trouble 
 
-I wanted to be able to include tags from treasuries that might contain some of the listings in my sample, but unfortunately there didn't appear to be an API call to fetch treasuries by contained listing. To get around this I wrote the script [get_treasuries.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_treasuries.py), which downloads the "hottest" 25,000 publicly available treasuries and saves them to a (very large) .json file. I then wrote a script [make_treasury_hashes.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/make_treasury_hashes.py) that converts the large list of treasuries into two hashes: one for looking up treasury ids by listing id, and a second for looking up tags by treasury id. These hashes are then saved in .json format in two (much smaller) files. Sadly, after repeated attempts I was not able to produce a sample of shops from get_shops.py that contained even a single listing found amongst the ~250,000 treasury listings.
+The treasury information was tricky to obtain because there was no direct API for accessing treasuries by a contained listing. To get around this I wrote a script to download all available treasuries and store that information in a convenient hash for look-ups. Unfortunately, even after downloading all 25,000 publicly available treasuries, I was unable to find a random sample of active shops with any listings found in those treasuries.
 
-## The analysis
+To download treasuries and refactor them for efficient look-ups, run
 
-With my data collected I did some research on document similarity and settled on two techniques that seemed like they might be useful for this Etsy shop dataset: [tf-idf](http://en.wikipedia.org/wiki/Tf%E2%80%93idf), and [latent semantic analysis](http://en.wikipedia.org/wiki/Latent_semantic_indexing).
+    python get_treasuries.py "treasuries.json"
+    python make_treasury_hashes.py "treasuries.json" "listing_treasury_hash.json" "treasury_tag_hash.json"
 
-#### Tf-idf
+## The algorithm(s)
 
-The first technique I tried was [tf-idf](http://en.wikipedia.org/wiki/Tf%E2%80%93idf), which stands for "term frequency - inverse document frequency." Tf-idf is a simple way to represent a document as an unordered "bag of words," where each distinct word in the document is weighted based on how important it is. Words that appear a lot in one document get bumped up (like "scarf" in a shop with a bunch of listings for scarves), but words that appear in lots of different documents get bumped down (like "the" and other generic words). Shops are deemed similar if they have lots of highly-weighted words in common. I decided on an "augmented norm" weighting for the tf part, which normalizes term frequencies of a document based on the most frequent term in that document. This was to help account for the great variation in shop document size and content. One drawback to the tf-idf method is that it doesn't respond to synonyms or alternate spellings. One great benefit is that it is easy to implement.
+After cleaning and tokenizing all of this text, I used [tf-idf](http://en.wikipedia.org/wiki/Tf%E2%80%93idf) to weight each distinct term associated with a shop and form a sparse term-document matrix. Tf-idf normalizes term frequencies so that important words like "scarf" or "silver" get weighted more heavily, while ubiquitous unimportant words like "the" and "for" get weighted much less. 
 
-I wrote the script [get_similar_shops.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops.py), which reads in my augmented shop data in .json format and then collects, tokenizes, cleans, and weights the words in each shop according to the tf-idf equations. I found that many shops tended to cram multiple concepts into a single tag, so at the risk of destroying some compound words I decided to tokenize all tag fields as well. It might be interesting to try this problem using n-grams instead of single word tokens, but due to the small sample size in this project I felt that this would just introduce unwanted noise.
+I chose to include lots of terms from shops knowing that many would likely be irrelevant, with the idea that td-idf would serve to filter out the meaningful terms from the noise. This is a deliberate strategy to ensure that shops with very little data could still be included in a similarity search. 
 
-#### Distance measures
+I also found that many shops tended to cram multiple concepts into a single tag, so at the risk of destroying some compound words I decided to tokenize all tag fields as well. It might be interesting to try this problem using n-grams instead of single word tokens, but due to the small sample size in this project I felt that this would just introduce unwanted noise.
 
-I then used [cosine similarity](http://en.wikipedia.org/wiki/Cosine_similarity) to compute the similarity score between each pair of shops. Cosine similarity seems to be the standard measure used in these types of analyses, and it is useful because it does not discriminate based on document size (it merely computes the cosine of the angle between the vector representations of the two documents in question). This seemed like the best choice for the Etsy data, as different shops have drastically different sizes based on listing quantity and wordiness of shop owners. 
+I then used [cosine similarity](http://en.wikipedia.org/wiki/Cosine_similarity) to measure the distance (similarity) between shops. I chose cosine similarity because, unlike say Euclidian distance, cosine similarity is not affected by the magnitude of the vectors it is comparing. This seemed like the best choice for the Etsy data, as different shops can have drastically sizes based on their number of listings and how wordy the shop owners are in their descriptions.
 
-I first tried other, more complicated distance measures. I split up each document's bag of words into multiple bags of words from separate sources (words from important fields like tags, categories, and listing titles went into one bag; less important fields like geographic location, user info, and listing enums went into a second bag; and "prose" fields like listing descriptions went into a third bag, labeled by the indicated language of the listing). I computed cosine similarity on each bag type separately, and then combined these similarities by a global weight of my subjective choosing. 
+To display the 5 most similar shops to each shop in a sample, run
 
-In addition to this I tried adding in a shop-size factor that boosted the similarity score of shops with a similar quantity of listings. 
+    python get_similar_shops.py "shops.json"
+    
+To run this script with the treasury information included, run
 
-In the end I didn't see much improvement over the single bag of words model, and I didn't feel comfortable introducing arbitrary weightings to things without first performing a deeper empirical investigation about what these weightings ought to be. I decided to trust in the canonical word weightings of tf-idf, though I would be open to blending multiple models in the future given adequate and sensible testing.
+    python get_similar_shops.py "shops.json" "listing_treasury_hash.json" "treasury_tag_hash.json"
+    
+To display more verbose similarity information, such as similarity score and the highest weighted terms from each shop, run
 
-#### Latent semantic indexing
+    python get_similar_shops.py "shops.json" "listing_treasury_hash.json" "treasury_tag_hash.json" "print"
 
-The second technique I investigated is called [latent semantic indexing](http://en.wikipedia.org/wiki/Latent_semantic_indexing) (LSI). This is more sophisticated than tf-idf, and much more powerful. In LSI, documents are first converted to weighted bags of words, just as in tf-idf. This collection of bags is then stored in a term-document matrix. Then, [singular value decomposition](http://en.wikipedia.org/wiki/Singular_value_decomposition) is performed to extract "concepts" (read: eigenvectors) from the collection of documents. Finally, each document is then re-written in terms of its underlying concepts (read: change of basis) instead of merely in terms of the specific words it contains. Under this framework two documents can be recognized as similar even if they share no words in common. This is very useful for the Etsy shop problem. A shop comprised of tags ["sterling", "antique", "jewelry"] would share no similarity to a shop defined by tags ["silver", "vintage", "earrings"] under the basic tf-idf model. LSI uses linear algebra and the wisdom of the masses (read: the covariance between words in the document corpus) to overcome this limitation. 
+The simple approach of tf-idf has its limitations. In particular, it is no good at detecting synonyms or alternate spellings of terms. To get around this I wrote an alternate script [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) that [lemmatizes](http://en.wikipedia.org/wiki/Lemmatisation) terms using [NLTK](http://www.nltk.org/) and performs [latent semantic indexing](http://en.wikipedia.org/wiki/Latent_semantic_indexing) using the [Gensim](http://radimrehurek.com/gensim/index.html) package. Latent symantic indexing (also known as latent symantic analysis) performs [singular value decomposition](http://en.wikipedia.org/wiki/Singular_value_decomposition) on the term-document matrix to extract meaningful "concepts" (read: eigenvectors), and re-defines each document in terms of these concepts. This is much stronger than simple tf-idf, as it leverages the covariance between terms to detect document similarity even when explicit term overlap is low. 
 
-Just like in the tf-idf model, these transformed document vectors can be compared using the [cosine similarity](http://en.wikipedia.org/wiki/Cosine_similarity) formula. Unlike the tf-idf model, LSI is hard to implement without the use of statistical packages for performing large sparse matrix operations. I found a python library called [Gensim](http://radimrehurek.com/gensim/index.html) that does this heavy lifting for you. I made a second version of the similarity script called [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) which uses this package. 
+To display the 5 most similar shops based on LSI, run
 
-I chose a sample of 300 shops, which amounted to a total of  Then I installed the [WordNet](http://wordnet.princeton.edu/) libraries from the [Natural Language Toolkit](http://www.nltk.org/) in order to further clean up words by [lemmatizing](http://en.wikipedia.org/wiki/Lemmatisation) them. (This is a process which converts a word to its root, like "sewing" -> "sew.")
+    python get_similar_shops_lsi.py "shops.json"
 
 ## Results
 
-I ran both the tf-idf technique and the LSI technique on a sample of 300 shops, and they produced positive results. The similarity scores from LSI were markedly high between shops with obvious similarities, but droped off quickly as you went down the list. This often appeared to correspond conceptually to the drop-off of meaningful similarity between shops on each list. 
+I ran both the tf-idf technique and the LSI technique on a sample of 300 shops, and they produced positive results. The similarity scores from LSI were markedly high between shops with obvious similarities, but dropped off quickly as you went down the list. This often appeared to correspond conceptually to the drop-off of meaningful similarity between shops on each list. 
 
 For example, the shop LittleFuzzyBaby (which sells baby blankets) scored a 91.6% similarity with SweetMinkyBaby, which also sells baby blankets. The next 4 shops in the top five sell other baby-oriented things, though not blankets specifically. Accordingly, these shops scored in the 47%-66% similarity range. This seems to make sense.
 
@@ -76,8 +81,6 @@ _tf-idf example result, showing 4 highest weighted terms for each shop:_
 When testing the tf-idf method with smaller sample sizes (like 100) I noticed that shops with very few listings seemed to show up frequently in unexpected top-five lists. This may have been due to the choice of tf-idf weighting formulas, which may have inadvertently penalized or homogenized weights in longer documents. It may also be that shops with scarse information were more heavily weighted by secondary traits, like location or various listing enums that I included in the bag of words. 
 
 A larger sample size and different choices for some of the parameters along the way might help improve this model. Access to user site usage data could also be greatly helpful toward measuring the "correctness" of these similarity results. 
-
-
 
 
   
