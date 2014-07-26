@@ -6,13 +6,13 @@ The goal of this project was to be able to reasonably determine the five most si
 
 ## The data
 
-Due to the variation in how and where shop owners choose to display information about their shops and listings, I chose to incorporate as many concievably relevant fields from the Etsy API as possible into my algorithm. For a given shop, I collected listing tags, title, description, category, style, materials, who-made, when-made, recipient, and occasion. I then went on to collect shop announcement and about information; shop owner profile location information and favorite matierials; tags from teams the shop owner belongs to; and tags from treasuries the shop owner's listings belong to. 
+Due to the variation in how and where shop owners choose to display information about their shops and listings, I chose to incorporate as many concievably relevant fields from the Etsy API as possible into my algorithm. From each shop's listings I collected tags, title, description, category, style, materials, who-made, when-made, recipient, and occasion fields. I then went on to collect shop announcements and "about" information; shop owner profile location information and favorite matierials lists; tags from teams the shop owner belongs to; and tags from treasuries the shop owner's listings belong to. 
 
 I chose to include lots of term sources for shops knowing that many would likely be irrelevant, with the idea that the algorithm would serve to filter out the meaningful terms from the noise. This is a deliberate strategy to ensure that shops with very little data and few listings could still be included in a similarity search. 
 
 I also found that many shops tended to cram multiple concepts into a single tag, so at the risk of destroying some compound words I decided to tokenize all tag fields as well. It might be interesting to try this problem using n-grams instead of single word tokens, but due to the small sample size in this project I felt that this would just introduce unwanted noise.
 
-To download 5000 active shops and then save relevant data for a sample of 300, in the command line run
+To download 5000 active shops and then save relevant data for a sample of 300, in the command line run [get_shops.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_shops.py):
 
     python get_shops.py 5000 300 "shops.json"
     
@@ -20,9 +20,9 @@ This will output to a file shops.json.
 
 #### Treasury trouble 
 
-The treasury information was tricky to obtain because there was no direct API for accessing treasuries by a contained listing. To get around this I wrote a script to download all available treasuries and store that information in a convenient hash for look-ups. Unfortunately, even after downloading all 25,000 publicly available treasuries, I was unable to find a random sample of active shops with any listings found in those treasuries.
+The treasury information was tricky to obtain because there was no direct API for accessing treasuries by a contained listing. To get around this I wrote a script to download all available treasuries and store that information in convenient hashes for look-ups. Unfortunately, even after downloading all 25,000 publicly available treasuries, I was unable to find a random sample of active shops with any listings found in those treasuries.
 
-To download treasuries and refactor them for efficient look-ups, run
+To try anyway and download treasuries and refactor them for efficient look-ups, run [get_treasuries.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_treasuries.py) and [make_treasury_hashes.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/make_treasury_hashes.py):
 
     python get_treasuries.py "treasuries.json"
     python make_treasury_hashes.py "treasuries.json" "listing_treasury_hash.json" "treasury_tag_hash.json"
@@ -31,9 +31,9 @@ To download treasuries and refactor them for efficient look-ups, run
 
 After cleaning and tokenizing all of this text, I used [tf-idf](http://en.wikipedia.org/wiki/Tf%E2%80%93idf) to weight each distinct term associated with a shop and form a sparse term-document matrix. Tf-idf normalizes term frequencies so that important words like "scarf" or "silver" get weighted more heavily, while ubiquitous unimportant words like "the" and "for" get weighted much less. 
 
-I then used [cosine similarity](http://en.wikipedia.org/wiki/Cosine_similarity) to measure the distance (similarity) between shops. I chose cosine similarity because, unlike say Euclidian distance, cosine similarity is not affected by the magnitude of the vectors it is comparing. This seemed like the best choice for the Etsy data, as different shops can have drastically sizes based on their number of listings and how wordy the shop owners are in their descriptions.
+I then used [cosine similarity](http://en.wikipedia.org/wiki/Cosine_similarity) to measure the distance (similarity) between shops. I chose cosine similarity because unlike, say, Euclidian distance, cosine similarity is not affected by the magnitude of the vectors it is comparing. This seemed like the best choice for the Etsy data, as different shops can have drastically different sizes based on number of listings and how wordy the shop owners are in their descriptions.
 
-To display the 5 most similar shops to each shop in a sample, run
+To display the 5 most similar shops to each shop in a sample, run [get_similar_shops.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops.py):
 
     python get_similar_shops.py "shops.json"
     
@@ -47,7 +47,7 @@ To display more verbose similarity information, such as similarity score and the
 
 The simple approach of tf-idf has its limitations. In particular, it is no good at detecting synonyms or alternate spellings of terms. To get around this I wrote an alternate script [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) that [lemmatizes](http://en.wikipedia.org/wiki/Lemmatisation) terms using [NLTK](http://www.nltk.org/) and performs [latent semantic indexing](http://en.wikipedia.org/wiki/Latent_semantic_indexing) using the [Gensim](http://radimrehurek.com/gensim/index.html) package. Latent symantic indexing (also known as latent symantic analysis) performs [singular value decomposition](http://en.wikipedia.org/wiki/Singular_value_decomposition) on the term-document matrix to extract meaningful "concepts" (read: eigenvectors), and re-defines each document in terms of these concepts. This is much stronger than simple tf-idf, as it leverages the covariance between terms to detect document similarity even when explicit term overlap is low. 
 
-To display the 5 most similar shops based on LSI, first install NLTK and Gensim libraries, and then run
+To display the 5 most similar shops based on LSI, first install [NLTK](http://www.nltk.org/) and [Gensim](http://radimrehurek.com/gensim/index.html) libraries, and then run [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py)
 
     python get_similar_shops_lsi.py "shops.json"
 
