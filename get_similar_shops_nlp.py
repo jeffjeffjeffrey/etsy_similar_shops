@@ -6,11 +6,27 @@ from nltk.stem.wordnet import WordNetLemmatizer
 from gensim import corpora, models, similarities
 import logging
 
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
+
 def main():
 
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.WARN)
-
-    shops = get_object_from_json(sys.argv[1])
+    print_details = False
+    try:
+        if len(sys.argv) > 1:
+            shops = get_object_from_json(sys.argv[1])
+            listing_treasury_hash = {}
+            treasury_tag_hash = {}
+        if len(sys.argv) > 3:
+            listing_treasury_hash = get_object_from_json(sys.argv[2])
+            treasury_tag_hash = get_object_from_json(sys.argv[3])
+            logging.debug("Treasury tag hash found with " + str(len(treasury_tag_hash)) + " treasuries.")
+            logging.debug("Listing treasury hash found with " + str(len(listing_treasury_hash)) + " listings.")
+        if len(sys.argv) == 5 and sys.argv[4] == "details":            
+            print_details = True
+    except:
+        e = sys.exc_info()[0]
+        logging.error("We had an error with command line args: " + str(e)) 
+        return
     
     texts = []
 
@@ -22,17 +38,20 @@ def main():
         terms += get_listing_terms(shop['listings'])
         terms += get_user_profile_terms(shop['user_profile'])
         terms += get_misc_terms(shop)
+        terms += get_treasury_terms(shop['listings'], listing_treasury_hash, treasury_tag_hash)
         
         shop['terms'] = clean_terms(terms)
         shop['term_counts'] = get_term_counts(clean_terms(terms))
         all_terms += shop['term_counts'].keys()
         texts.append(clean_terms(terms))
     
+    # Remove any tokens that only appear once in the whole corpus
     all_tokens = sum(texts, [])
     tokens_once = set(word for word in set(all_tokens) if all_tokens.count(word) == 1)
     texts = [[word for word in text if word not in tokens_once]
         for text in texts]
             
+    
     dictionary = corpora.Dictionary(texts) # creates numerical ids for all tokens in the corpus
     
     corpus = [dictionary.doc2bow(text) for text in texts] # changes the text-based corpus into a bow-based corpus
@@ -40,7 +59,7 @@ def main():
     tfidf = models.TfidfModel(corpus) # step 1 -- initialize a model    
     corpus_tfidf = tfidf[corpus] # transforms the bow-based corpus into a tf-idf weighted corpus
 
-    lsi = models.LsiModel(corpus_tfidf, id2word=dictionary, num_topics=50)
+    lsi = models.LsiModel(corpus_tfidf, id2word=dictionary, num_topics=100)
     corpus_lsi = lsi[corpus_tfidf] # create a double wrapper over the original corpus: bow->tfidf->fold-in-lsi
     
     index = similarities.MatrixSimilarity(lsi[corpus])
@@ -57,17 +76,25 @@ def main():
         )
         
     for i in range(len(shops)):
-        print shops[i]['shop_name'],
-        print_top_terms(shops[i]['term_weights'])
         vec_lsi = lsi[tfidf[dictionary.doc2bow(shops[i]['terms'])]]
         sims = index[vec_lsi]
         sims = sorted(enumerate(sims), key=lambda item: -item[1])
-        for sim in sims[1:11]:
-            print " " + str(sim[1]) + " " + shops[sim[0]]['shop_name'],
-            print_top_terms(shops[sim[0]]['term_weights'])
+        if print_details:
+            print_similar_shop_details(shops[i], shops, sims[1:6])
+        else:
+            print_similar_shops(shops[i], sims[1:6])
     
     return
-    
+
+def print_similar_shop_details(primary_shop, all_shops, sims):  
+    print primary_shop['shop_name'],
+    print_top_terms(primary_shop['term_weights']
+    i = 1  
+    for sim in sims:
+        print str(i) + ". " + str(sim[1]) + " " + shops[sim[0]]['shop_name'],
+        print_top_terms(shops[sim[0]]['term_weights'])
+    #=====
+        
 def print_top_terms(term_weights):
     pairs = []
     for term in term_weights:
@@ -92,10 +119,24 @@ def get_listing_terms(listings):
             terms += listing['title'].split()
         if listing['description']:
             terms += listing['description'].split()  
+        if listing['who_made']:
+            terms.append(listing['who_made'].replace('_', ''))
+        if listing['when_made']:
+            terms.append(listing['when_made'].replace('_', ''))
+        if listing['recipient']:
+            terms.append(listing['recipient'].replace('_', ''))
+        if listing['occasion']:
+            terms.append(listing['occasion'].replace('_', ''))   
     return terms
     
 def get_user_profile_terms(user_profile):
     terms = []
+    if user_profile['country_id']:
+        terms.append("countryid" + str(user_profile['country_id']))
+    if user_profile['region']:
+        terms.append(user_profile['region'])
+    if user_profile['city']:
+        terms.append(user_profile['city'])
     if user_profile['materials']:
         materials = user_profile['materials'].split('.')
         for material in materials:
@@ -104,10 +145,27 @@ def get_user_profile_terms(user_profile):
 
 def get_misc_terms(shop):
     terms = []
+    if shop['announcement']:
+        terms += shop['announcement'].split()
+    if shop['about']:
+        terms += shop['about']['story_headline'].split()
+        terms += shop['about']['story_leading_paragraph'].split()
+        terms += shop['about']['story'].split()
     for team in shop['user_teams']:
         terms += team['tags']
     return terms
-	
+
+def get_treasury_terms(listings, listing_treasury_hash, tresury_tag_hash):
+    terms = []
+    total = 0
+    for listing in listings:
+        if str(listing['listing_id']) in listing_treasury_hash:
+            total += 1
+            terms += treasury_tag_hash[str(listing['listing_id'])]
+    if total > 0:
+        logger.debug("Shop found with " + str(total) + " treasuried listing(s).")
+    return terms	
+
 def get_term_counts(terms):
     term_counts = {}
     if not terms:

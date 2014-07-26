@@ -4,23 +4,29 @@ import math
 import re
 import logging
 
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
+
 def main():
 
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.WARN)
-
-    if len(sys.argv) > 0:
-        shops = get_object_from_json(sys.argv[1])
-        listing_treasury_hash = {}
-        treasury_tag_hash = {}
-    if len(sys.argv) == 4:
-        listing_treasury_hash = get_object_from_json(sys.argv[3])
-        treasury_tag_hash = get_object_from_json(sys.argv[2])
-        print "Treasury tag hash found with " + str(len(treasury_tag_hash)) + " treasuries."
-        print "Listing treasury hash found with " + str(len(listing_treasury_hash)) + " listings."
-
-    shops = shops[:100]
-    
-    # Calculate the term counts in each shop
+    print_details = False
+    try:
+        if len(sys.argv) > 1:
+            shops = get_object_from_json(sys.argv[1])
+            listing_treasury_hash = {}
+            treasury_tag_hash = {}
+        if len(sys.argv) > 3:
+            listing_treasury_hash = get_object_from_json(sys.argv[2])
+            treasury_tag_hash = get_object_from_json(sys.argv[3])
+            logging.debug("Treasury tag hash found with " + str(len(treasury_tag_hash)) + " treasuries.")
+            logging.debug("Listing treasury hash found with " + str(len(listing_treasury_hash)) + " listings.")
+        if len(sys.argv) == 5 and sys.argv[4] == "details":            
+            print_details = True
+    except:
+        e = sys.exc_info()[0]
+        logging.error("We had an error with command line args: " + str(e)) 
+        return
+           
+    # Collect the terms from each shop
     all_terms = []
 
     for shop in shops:
@@ -45,29 +51,51 @@ def main():
         )
     
     # Calculate five most similar shops to each shop
-    for primary_shop in shops:
-        print primary_shop['shop_name'],            
+    for primary_shop in shops:          
         similar_shops = []
         for other_shop in shops:
             similarity = cosine_similarity(
                 primary_shop['term_weights'], 
                 other_shop['term_weights']
             )
-            if similarity > 0.00001:
+            if similarity > 0:
                 similar_shops.append((other_shop, similarity))
-        similar_shops = sorted(similar_shops, key=lambda entry: -1 * entry[1])
-        print_top_terms(primary_shop['term_weights'])
-        for similar_shop in similar_shops[1:6]:
-            print "  " + str(math.trunc(similar_shop[1]*1000)/1000.0) + " " + similar_shop[0]['shop_name'],
-            print_top_terms(similar_shop[0]['term_weights'])
+        similar_shops = sorted(similar_shops, key=lambda entry: -1 * entry[1]) 
+        if print_details: 
+            print_similar_shop_details(primary_shop, similar_shops[1:6]) 
+        else:
+            print_similar_shops(primary_shop, similar_shops[1:6])     
+
     return 0
     
+def print_similar_shop_details(primary_shop, similar_shops):
+    print primary_shop['shop_name'],
+    print_top_terms(primary_shop['term_weights'])
+    if len(similar_shops) <= 1:
+        print "<No similar shops were found!>"
+    else:
+        i = 1
+        for similar_shop in similar_shops:            
+            print str(i) + ". " + str(similar_shop[1]) + " " + similar_shop[0]['shop_name'],
+            print_top_terms(similar_shop[0]['term_weights'])
+            i += 1
+            
+def print_similar_shops(primary_shop, similar_shops):
+    print primary_shop['shop_name'] + ":",
+    if len(similar_shops) <= 1:
+        print "<No similar shops were found!>"
+    else:
+        for similar_shop in similar_shops[:-1]:
+            print similar_shop[0]['shop_name'] + ",",
+        print similar_shops[-1][0]['shop_name']
+
+                    
 def print_top_terms(term_weights):
     pairs = []
     for term in term_weights:
         pairs.append((term, term_weights[term]))
     pairs = sorted(pairs, key=lambda entry: -1 * entry[1])
-    for pair in pairs[:7]:
+    for pair in pairs[:5]:
         print " (" + pair[0] + " " + str(math.trunc(pair[1]*100)/100.0) + ")",
     print ""
 
@@ -130,7 +158,7 @@ def get_treasury_terms(listings, listing_treasury_hash, tresury_tag_hash):
             total += 1
             terms += treasury_tag_hash[str(listing['listing_id'])]
     if total > 0:
-        print "Shop found with " + str(total) + " treasuried listing(s)."
+        logger.debug("Shop found with " + str(total) + " treasuried listing(s).")
     return terms
 	
 def get_term_counts(terms):
@@ -146,7 +174,7 @@ def get_term_counts(terms):
 def clean_terms(terms):
     cleaned = []
     for term in terms:
-        stems = re.sub('[^0-9a-zA-Z]+', ' ', term.lower()).strip().split()
+        stems = re.sub('[^0-9a-zA-Z]+', ' ', term).lower().strip().split()
         for stem in stems:
             cleaned.append(stem)
     return cleaned
