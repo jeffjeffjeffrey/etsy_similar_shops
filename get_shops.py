@@ -3,17 +3,20 @@ import json
 import urllib2
 import logging
 
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+
 KEYSTRING = "<REMOVED>" 
-
-
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
-
-
-
 URL_BASE = "https://openapi.etsy.com/v2/"
 
 def main():
 
+    # Command line arguments (3): 
+    #         1. the total number of shops to download,
+    #         2. the size of the sample of these shops to get additional data for,
+    #         3. the name of the output .json file.
+    # Output: a .json file of an array of shops augmented by additional data
+
+    # Check command line arguments    
     try:
         total = (int)(sys.argv[1])
         sample_size = (int)(sys.argv[2])
@@ -22,17 +25,17 @@ def main():
         e = sys.exc_info()[0]
         logging.error("We had an error with command line args: " + str(e)) 
         return
-        
-    logging.debug("Getting shops.")
-    
+ 
+    # Fetch the initial set of shops, batched by 100       
+    logging.info("Getting shops.")    
     shops = []
-    limit = min(100, total)
-    for offset in range(0, total, min(total, limit)):
-        logging.debug("Fetching shops " + str(offset + 1) + " - " + str(offset + limit))
+    for offset in range(0, total, 100):
+        limit = min(total - offset, 100)
+        logging.info("Fetching shops " + str(offset + 1) + " - " + str(offset + limit))
         shops += get_shops(limit, offset) 
           
-    # Select a sample of these shops and get listing data from that sample
-    
+    # Select a sample of these shops and get associated data from that sample  
+    logging.info("Taking a sample of " + str(min(sample_size, total)) + " shops.") 
     shops = shops[:sample_size]
     
     total_listings = 0
@@ -46,38 +49,43 @@ def main():
         if shop['announcement']:
             total_announcements += 1
 
-    logging.debug("Getting listings.")
+    logging.info("Getting listings.")
     for shop in shops:
         shop['listings'] = get_listings(shop['shop_id'])
         total_listings += len(shop['listings'])
         
     # Get additional data related to each shop
 
-    logging.debug("Getting abouts.")
+    logging.info("Getting abouts.")
     for shop in shops:
         shop['about'] = get_about(shop['shop_id'])
         if shop['about']:
             total_abouts += 1
 
-    logging.debug("Getting user profiles.")
+    logging.info("Getting user profiles.")
     for shop in shops:
         shop['user_profile'] = get_user_profile(shop['user_id'])
 
-    logging.debug("Getting user teams.")
+    logging.info("Getting user teams.")
     for shop in shops:
         shop['user_teams'] = get_user_teams(shop['user_id'])
                 
-    logging.debug("Total shops: " + str(len(shops)))           
-    logging.debug("Total listings: " + str(total_listings))
-    logging.debug("Total abouts: " + str(total_abouts))
-    logging.debug("Total announcements: " + str(total_announcements))
-    logging.debug("Total user teams: " + str(total_user_teams))
+    logging.info("Total shops: " + str(len(shops)))           
+    logging.info("Total listings: " + str(total_listings))
+    logging.info("Total abouts: " + str(total_abouts))
+    logging.info("Total announcements: " + str(total_announcements))
+    logging.info("Total user teams: " + str(total_user_teams))
     
-    # Save shop data to a file in json format
-    logging.debug("Saving outputs to " + output_file + ".")
+    # Save shop data to a file in .json format
+    logging.info("Saving outputs to " + output_file + ".")
     output_json(shops, output_file)
   
 def get_shops(limit, offset):
+    
+    # Inputs: limit = the number of shops to download,
+    #         offset = the starting index of shops to fetch
+    # Output: A list of shops, from the Etsy API
+    
     url = (
         URL_BASE 
         + "shops?"
@@ -92,6 +100,10 @@ def get_shops(limit, offset):
         return []
         
 def get_listings(shop_id):
+
+    # Input: a shop_id
+    # Output: A list of listings from that shop, from the Etsy API
+    
     url = (
         URL_BASE 
         + "shops/" 
@@ -106,6 +118,12 @@ def get_listings(shop_id):
         return []    
 
 def get_about(shop_id):
+
+    # Input: a shop_id
+    # Output: the ShopAbout object, if it exists, for that shop, from the Etsy API
+    # Note: This method throws errors whenever the ShopAbout section does not exist.
+    #       I'm not sure how to avoid this.
+    
     url = (
         URL_BASE 
         + "shops/" 
@@ -120,6 +138,10 @@ def get_about(shop_id):
         return None
 
 def get_user_profile(user_id):
+
+    # Input: a user_id
+    # Output: a UserProfile object, if it exists, for this user, from the Etsy API
+    
     url = (
         URL_BASE 
         + "users/" 
@@ -134,6 +156,10 @@ def get_user_profile(user_id):
         return None
             
 def get_user_teams(user_id):
+
+    # Input: a user_id
+    # Output: A list of Team objects that the user belongs to, from the Etsy API
+    
     url = (
         URL_BASE 
         + "users/" 
@@ -148,6 +174,10 @@ def get_user_teams(user_id):
         return []
             
 def get_data_from_api(url):
+
+    # Input: a url
+    # Output: the .json objects found at that url
+    
     try:
         data = urllib2.urlopen(url).readline()
         objects = json.loads(data)
@@ -158,6 +188,10 @@ def get_data_from_api(url):
     return objects
     
 def output_json(data, file_name):
+
+    # Input: any object, and an output file_name
+    # Output: saves the object in .json format to the specified file_name
+    
     with open(file_name, 'w') as outfile:
         json.dump(data, outfile)
 

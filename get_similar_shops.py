@@ -4,38 +4,49 @@ import math
 import re
 import logging
 
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.ERROR)
 
 def main():
 
-    print_details = False
+    # Command line arguments (4): 
+    #         1. the name of a shops .json file,
+    #         2. (optional) the name of a listing-treasury hash .json file,
+    #         3. (optional) the name of a treasury tag hash .json file,
+    #         4. (optional) the string "details" to turn on more verbose output
+    # Output: prints the name of each input shop followed by its five most similar shops.
+    # Algorithm: tf-idf term weighting with cosine similarity measure
+
+    # Check command line arguments and load input files
     try:
-        if len(sys.argv) > 1:
-            shops = get_object_from_json(sys.argv[1])
-            listing_treasury_hash = {}
-            treasury_tag_hash = {}
+        shops = get_object_from_json(sys.argv[1])
+        logging.info("Shop list found with " + str(len(shops)) + " shops.")
         if len(sys.argv) > 3:
             listing_treasury_hash = get_object_from_json(sys.argv[2])
             treasury_tag_hash = get_object_from_json(sys.argv[3])
-            logging.debug("Treasury tag hash found with " + str(len(treasury_tag_hash)) + " treasuries.")
-            logging.debug("Listing treasury hash found with " + str(len(listing_treasury_hash)) + " listings.")
+            logging.info("Listing treasury hash found with " + str(len(listing_treasury_hash)) + " listings.")
+            logging.info("Treasury tag hash found with " + str(len(treasury_tag_hash)) + " treasuries.")
+        else:
+            listing_treasury_hash = {}
+            treasury_tag_hash = {}
         if len(sys.argv) == 5 and sys.argv[4] == "details":            
             print_details = True
+        else: 
+            print_details = False
     except:
         e = sys.exc_info()[0]
         logging.error("We had an error with command line args: " + str(e)) 
         return
            
-    # Collect the terms from each shop
+    # Collect the terms from each shop and its related objects
     all_terms = []
-
     for shop in shops:
         terms = [] 
         terms += get_listing_terms(shop['listings'])
         terms += get_user_profile_terms(shop['user_profile'])
         terms += get_misc_terms(shop)
-        terms += get_treasury_terms(shop['listings'], listing_treasury_hash, treasury_tag_hash)
-        
+        terms += get_treasury_terms(shop['listings'], listing_treasury_hash, treasury_tag_hash)        
+
+        # Store the term-count hash in the shop object
         shop['term_counts'] = get_term_counts(clean_terms(terms))
         all_terms += shop['term_counts'].keys()
         
@@ -50,8 +61,11 @@ def main():
             len(shops)
         )
     
-    # Calculate five most similar shops to each shop
-    for primary_shop in shops:          
+    # Calculate and print the five most similar shops to each shop
+    for primary_shop in shops:   
+        if len(primary_shop['term_counts']) == 0:
+            print primary_shop['shop_name'] + " has no terms!"
+            continue     
         similar_shops = []
         for other_shop in shops:
             similarity = cosine_similarity(
@@ -66,13 +80,18 @@ def main():
         else:
             print_similar_shops(primary_shop, similar_shops[1:6])     
 
-    return 0
+    return
     
 def print_similar_shop_details(primary_shop, similar_shops):
+
+    # Input: a shop object along with a list of (shop, similarity score) pairs
+    # Output: prints the primary and similar shops' names,
+    #         along with similarity score and highest weighted terms
+    
     print primary_shop['shop_name'],
     print_top_terms(primary_shop['term_weights'])
     if len(similar_shops) <= 1:
-        print "<No similar shops were found!>"
+        print " No similar shops were found!"
     else:
         i = 1
         for similar_shop in similar_shops:            
@@ -81,16 +100,23 @@ def print_similar_shop_details(primary_shop, similar_shops):
             i += 1
             
 def print_similar_shops(primary_shop, similar_shops):
+
+    # Input: a shop object along with a list of (shop, similarity score) pairs
+    # Output: prints the primary and similar shops' names
+    
     print primary_shop['shop_name'] + ":",
     if len(similar_shops) <= 1:
-        print "<No similar shops were found!>"
+        print " No similar shops were found!"
     else:
         for similar_shop in similar_shops[:-1]:
             print similar_shop[0]['shop_name'] + ",",
         print similar_shops[-1][0]['shop_name']
 
-                    
 def print_top_terms(term_weights):
+
+    # Input: a hash of term to weight
+    # Output: prints the top five weighted terms and their weights
+    
     pairs = []
     for term in term_weights:
         pairs.append((term, term_weights[term]))
@@ -100,6 +126,10 @@ def print_top_terms(term_weights):
     print ""
 
 def get_listing_terms(listings):
+
+    # Input: a list of Etsy Listing objects
+    # Output: a list of terms found in various fields in these listings
+    
     terms = []
     for listing in listings:
         if listing['tags']:
@@ -125,6 +155,10 @@ def get_listing_terms(listings):
     return terms
     
 def get_user_profile_terms(user_profile):
+
+    # Input: an Etsy UserProfile object
+    # Output: a list of terms found in this profile
+    
     terms = []
     if user_profile['country_id']:
         terms.append("countryid" + str(user_profile['country_id']))
@@ -139,6 +173,10 @@ def get_user_profile_terms(user_profile):
     return terms
 
 def get_misc_terms(shop):
+
+    # Input: an Etsy Shop object
+    # Output: a list of terms found in this shop
+    
     terms = []
     if shop['announcement']:
         terms += shop['announcement'].split()
@@ -151,6 +189,13 @@ def get_misc_terms(shop):
     return terms
     
 def get_treasury_terms(listings, listing_treasury_hash, tresury_tag_hash):
+
+    # Input: a list of Etsy Listing objects, 
+    #        a hash from listing id to the ids of treasuries containing that listing,
+    #        a hash from treasury id to the tags of that treasury
+    # Output: a list of terms found in the tags of the treasuries containing
+    #         the input listings
+    
     terms = []
     total = 0
     for listing in listings:
@@ -162,6 +207,10 @@ def get_treasury_terms(listings, listing_treasury_hash, tresury_tag_hash):
     return terms
 	
 def get_term_counts(terms):
+
+    # Input: a list of terms
+    # Output: a hash from term to term count
+    
     term_counts = {}
     if not terms:
         return term_counts
@@ -172,6 +221,11 @@ def get_term_counts(terms):
     return term_counts
 
 def clean_terms(terms):
+
+    # Input: a list of terms
+    # Output: a list of these terms with non-alphanumeric characters removed, 
+    #         converted to lowercase, and tokenized
+    
     cleaned = []
     for term in terms:
         stems = re.sub('[^0-9a-zA-Z]+', ' ', term).lower().strip().split()
@@ -180,6 +234,13 @@ def clean_terms(terms):
     return cleaned
 
 def get_term_weights(term_counts, term_shop_counts, num_shops):
+
+    # Input: a hash of term to term count, 
+    #        a hash of term to the number of documents which contain that term,
+    #        the total number of shops
+    # Output: a hash of terms to the tf-idf weighting of each term,
+    #         using the augmented norm for term frequency
+    
     weights = {}
     max_count = 1
     for term in term_counts:
@@ -190,6 +251,10 @@ def get_term_weights(term_counts, term_shop_counts, num_shops):
     return weights
     
 def cosine_similarity(weights_1, weights_2):
+
+    # Input: two hashes from term to term weight
+    # Output: the cosine similarity score between the two hashes
+    
     if not weights_1 or not weights_2:
         return 0.0
     intersection = set(weights_1.keys()) & set(weights_2.keys())
@@ -205,6 +270,10 @@ def cosine_similarity(weights_1, weights_2):
         return float(numerator) / denominator
         	
 def get_object_from_json(file_name):
+
+    # Input: the name of a known .json file
+    # Output: a python object made from that file's contents
+    
     file = open(file_name)
     object = json.load(file)
     return object
