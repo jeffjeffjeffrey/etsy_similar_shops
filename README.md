@@ -37,17 +37,17 @@ To display the 5 most similar shops to each shop in a sample, run [get_similar_s
 
     python get_similar_shops.py "shops.json"
     
-To run this script with the treasury information included, run
+To run this script with the treasury information included (sample runs of these two treasury hash .json files are availible in this repo), run:
 
     python get_similar_shops.py "shops.json" "listing_treasury_hash.json" "treasury_tag_hash.json"
     
-To display more verbose similarity information, such as similarity score and the highest weighted terms from each shop, run
+To display more verbose similarity information, such as similarity score and the highest weighted terms from each shop, run:
 
     python get_similar_shops.py "shops.json" "listing_treasury_hash.json" "treasury_tag_hash.json" "details"
 
 The simple approach of tf-idf has its limitations. In particular, it is not good at detecting synonyms or alternate spellings of terms. To get around this I wrote an alternate script [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) that [lemmatizes](http://en.wikipedia.org/wiki/Lemmatisation) terms using [NLTK](http://www.nltk.org/) and performs [latent semantic indexing](http://en.wikipedia.org/wiki/Latent_semantic_indexing) using the [Gensim](http://radimrehurek.com/gensim/index.html) package. Latent semantic indexing (also known as latent semantic analysis) applies [singular value decomposition](http://en.wikipedia.org/wiki/Singular_value_decomposition) on the term-document matrix to extract meaningful "concepts" (read: eigenvectors), and re-defines each document in terms of these concepts. This is much stronger than simple tf-idf, as it leverages the covariance between terms to detect document similarity even when explicit term overlap is low. 
 
-To display the 5 most similar shops based on LSI, first install [NLTK](http://www.nltk.org/) and [Gensim](http://radimrehurek.com/gensim/index.html) libraries, and then run [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py)
+To display the 5 most similar shops based on LSI, first install [NLTK](http://www.nltk.org/) and [Gensim](http://radimrehurek.com/gensim/index.html) libraries, and then run [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py):
 
     python get_similar_shops_lsi.py "shops.json"
     
