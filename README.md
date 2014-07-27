@@ -24,7 +24,7 @@ Treasury information was tricky to obtain because there was no direct API for ac
 
 To try anyway and download treasuries and refactor them for efficient look-ups (takes about an hour or two), run [get_treasuries.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_treasuries.py) and [make_treasury_hashes.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/make_treasury_hashes.py):
 
-    python get_treasuries.py "treasuries.json"
+    python get_treasuries.py 25000 "treasuries.json"
     python make_treasury_hashes.py "treasuries.json" "listing_treasury_hash.json" "treasury_tag_hash.json"
 
 Output from a sample run of make_treasury_hashes.py is available in this repo: [listing_treasury_hash.json](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/listing_treasury_hash.json) / [treasury_tag_hash.json](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/treasury_tag_hash.json).
@@ -39,22 +39,22 @@ To display the 5 most similar shops to each shop in the sample file shops.json, 
 
     python get_similar_shops.py "shops.json"
     
-To run this script with the treasury information included, run with these extra arguments (sample output [here](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf.txt)):
+To run this script with the treasury information included, run with these extra arguments (see sample tf-idf output [here](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf.txt)):
 
     python get_similar_shops.py "shops.json" "listing_treasury_hash.json" "treasury_tag_hash.json"
 
     
-To display more verbose similarity information, such as similarity score and the highest weighted terms from each shop, run with "details" as the fourth argument (sample output [here](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf.txt)):
+To display more verbose similarity information, such as similarity score and the highest weighted terms from each shop, run with "details" as the fourth argument (see sample detailed td-idf output [here](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf.txt)):
 
     python get_similar_shops.py "shops.json" "listing_treasury_hash.json" "treasury_tag_hash.json" "details"
 
-The simple approach of tf-idf has its limitations. In particular, it is not good at detecting synonyms or alternate spellings of terms. To get around this I wrote an alternate script [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) that [lemmatizes](http://en.wikipedia.org/wiki/Lemmatisation) terms using [NLTK](http://www.nltk.org/) and performs [latent semantic indexing](http://en.wikipedia.org/wiki/Latent_semantic_indexing) using the [Gensim](http://radimrehurek.com/gensim/index.html) package. Latent semantic indexing (also known as latent semantic analysis) applies [singular value decomposition](http://en.wikipedia.org/wiki/Singular_value_decomposition) to the term-document matrix to extract meaningful "concepts" (read: eigenvectors), and then redefines each document in terms of these concepts. This is much stronger than simple tf-idf, as it leverages the covariance between terms to detect document similarity even when explicit term overlap is low. 
+The simple approach of tf-idf has its limitations. In particular, it is not good at detecting synonyms or alternate spellings of terms. To get around this I wrote an alternate script [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) that [lemmatizes](http://en.wikipedia.org/wiki/Lemmatisation) terms using [NLTK](http://www.nltk.org/) and performs [latent semantic indexing](http://en.wikipedia.org/wiki/Latent_semantic_indexing) using the [Gensim](http://radimrehurek.com/gensim/index.html) package. Latent semantic indexing (also known as latent semantic analysis) applies [singular value decomposition](http://en.wikipedia.org/wiki/Singular_value_decomposition) to the term-document matrix to extract meaningful "concepts" (read: eigenvectors), and then redefines each document in terms of those concepts. This is much stronger than simple tf-idf, as it leverages the covariance between terms to detect document similarity even when explicit term overlap is low. 
 
-To display the 5 most similar shops based on LSI, first install the [NLTK](http://www.nltk.org/) and [Gensim](http://radimrehurek.com/gensim/index.html) Python libraries, and then run [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) (sample output [here](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_lsi.txt)):
+To display the 5 most similar shops based on LSI, first install the [NLTK](http://www.nltk.org/) and [Gensim](http://radimrehurek.com/gensim/index.html) Python libraries, and then run [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) (see sample LSI output [here](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_lsi.txt)):
 
     python get_similar_shops_lsi.py "shops.json"
     
-This script also accepts additional treasury and "details" arguments just like [get_similar_shops.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops.py) does (sample detailed output [here](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_lsi_details.txt)).
+This script also accepts additional treasury and "details" arguments just like [get_similar_shops.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops.py) does (see sample detailed LSI output [here](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_lsi_details.txt)).
 
 ## Results
 
@@ -71,9 +71,11 @@ _LSI example result, showing 4 highest weighted terms for each shop (full result
     4. 0.513 Baugher17  (bottle 3.61)  (automotive 3.11)  (cleaned 3.11)  (lid 3.11)
     5. 0.478 OnesieGang  (goofy 3.66)  (onesie 3.57)  (punk 3.57)  (toddler 2.96)
 
-The tf-idf results had much lower, flatter similarity scores. The most similar shop in a list rarely exhibited a similarity score much greater than that of the fifth most similar. The tf-idf was still "correct" quite often, and exhibited top-five shop lists very much in line with those from the LSI results, though the tf-idf lists often would seemingly be in the wrong order, and with more apparent misses included. In the example below we see a similar result for LittleFuzzyBaby as in the LSI example, however the similarity scores here are much lower, with less of a gap between the winner (SweetMinkyBaby) and the rest. Also, a felt monster keychain shop called VsLittleMonsters somehow appeared as the second most similar shop to SweetMinkyBaby.
+The tf-idf results had much lower, flatter similarity scores. The most similar shop in a list rarely exhibited a similarity score much greater than that of the fifth most similar shop. The tf-idf results were still "correct" quite often, and exhibited top-five shop lists very much in line with those from the LSI results, though the tf-idf lists often would seemingly be in the wrong order, and with more apparent misses included. 
 
-_tf-idf example result, showing 4 highest weighted terms for each shop (full results: [concise](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf.txt) / [detailed](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf_details.txt)):_
+In the example below we see a similar result for LittleFuzzyBaby as in the LSI example, however the similarity scores here are much lower, with less of a gap between the winner (SweetMinkyBaby) and the rest. Also, a felt monster keychain shop called VsLittleMonsters somehow appeared as the second most similar shop to SweetMinkyBaby.
+
+_Tf-idf example result, showing 4 highest weighted terms for each shop (full results: [concise](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf.txt) / [detailed](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf_details.txt)):_
 
     LittleFuzzyBaby  (blanket 3.7)  (minky 3.4)  (hooded 3.22)  (camel 3.05)
     1. 0.127 SweetMinkyBaby  (minky 4.81)  (blankets 4.51)  (ruffle 3.87)  (butler 3.65)
@@ -84,6 +86,6 @@ _tf-idf example result, showing 4 highest weighted terms for each shop (full res
 
 When testing the tf-idf method with smaller sample sizes (like 100) I noticed that shops with very few listings seemed to show up frequently in unexpected top-five lists. This may have been due to the choice of tf-idf weighting formulas, which may have inadvertently penalized or homogenized weights in longer documents. It may also be that shops with scant information were more heavily weighted by secondary traits, like location or various listing enums that I included in the bag of words. 
 
-A larger sample size and different choices for some of the parameters along the way might help improve this model. Access to user site usage data could also be greatly helpful toward measuring the "correctness" of these similarity results. 
+A larger sample size and different choices for some of the parameters along the way might help improve this model. Access to user site-usage data could also be helpful toward measuring the "correctness" of these similarity results. 
 
-Overall, the bag-of-words tf-idf model performed decently for its simplicity, but the beautiful LSI algorithm stole the show with its consistently sensible, almost intuitive results.
+Overall, the bag-of-words tf-idf cosine model performed decently for its simplicity, but the beautiful LSI algorithm stole the show with its consistently sensible, almost intuitive results.
