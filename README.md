@@ -2,13 +2,13 @@
 
 ## Motivation
 
-The goal of this project was to be able to reasonably determine the five most similar shops for each given shop in an Etsy shop sample. This is the sort of feature that would have immediate use on the Etsy site. Users who spend a lot of time looking at certain shops could be shown other similar suggested shops to check out. Owners of similar shops could more easily find each other for forming teams. The categories within Etsy's shop-by-category system could evolve with changing trends through observation and clustering of shops by similarity. The list goes on!
+The goal of this project was to be able to reasonably determine the five most similar shops for each given shop in an Etsy shop sample. This is the sort of tool that would have immediate use on the Etsy site. Users who spend a lot of time looking at certain shops could be shown other similar suggested shops to check out. Owners of similar shops could more easily find each other for forming Etsy teams. The categories within Etsy's shop-by-category system could evolve with changing trends through observation and clustering of shops by similarity. The list goes on!
 
 ## The data
 
-Due to the variation in how and where shop owners choose to display information about their shops and listings, I chose to incorporate as many concievably relevant fields from the Etsy API as possible into my algorithm. From each shop's listings I collected tags, title, description, category, style, materials, who-made, when-made, recipient, and occasion fields. I then went on to collect shop announcements and "about" information; shop owner profile location information and favorite matierials lists; tags from teams the shop owner belongs to; and tags from treasuries the shop owner's listings belong to. 
+Due to the variation in how and where shop owners choose to display information about their shops and listings, I chose to incorporate as many conceivably relevant fields from the Etsy API as possible into my algorithm. From each shop's listings I collected tags, title, description, category, style, materials, who-made, when-made, recipient, and occasion fields. I then went on to collect shop announcements and "about" information; shop owner profile location information and favorite materials lists; tags from teams the shop owner belongs to; and tags from treasuries the shop owner's listings belong to. 
 
-I chose to include lots of term sources for shops knowing that many would likely be irrelevant, with the idea that the algorithm would serve to filter out the meaningful terms from the noise. This is a deliberate strategy to ensure that shops with very little data and few listings could still be included in a similarity search. 
+I chose to include lots of term sources for shops knowing that many would likely be irrelevant. This was done with the knowledge that the similarity algorithm would serve to filter out the meaningful terms from the noise. This is a deliberate strategy to ensure that shops with very little data and few listings could still be included in a similarity search. Indeed, many of the shops in my samples had only one listing, and several were deactivated even during the process of downloading their information.
 
 I also found that many shops tended to cram multiple concepts into a single tag, so at the risk of destroying some compound words I decided to tokenize all tag fields as well. It might be interesting to try this problem using n-grams instead of single word tokens, but due to the small sample size in this project I felt that this would just introduce unwanted noise.
 
@@ -43,21 +43,23 @@ To run this script with the treasury information included, run
     
 To display more verbose similarity information, such as similarity score and the highest weighted terms from each shop, run
 
-    python get_similar_shops.py "shops.json" "listing_treasury_hash.json" "treasury_tag_hash.json" "print"
+    python get_similar_shops.py "shops.json" "listing_treasury_hash.json" "treasury_tag_hash.json" "details"
 
-The simple approach of tf-idf has its limitations. In particular, it is no good at detecting synonyms or alternate spellings of terms. To get around this I wrote an alternate script [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) that [lemmatizes](http://en.wikipedia.org/wiki/Lemmatisation) terms using [NLTK](http://www.nltk.org/) and performs [latent semantic indexing](http://en.wikipedia.org/wiki/Latent_semantic_indexing) using the [Gensim](http://radimrehurek.com/gensim/index.html) package. Latent symantic indexing (also known as latent symantic analysis) performs [singular value decomposition](http://en.wikipedia.org/wiki/Singular_value_decomposition) on the term-document matrix to extract meaningful "concepts" (read: eigenvectors), and re-defines each document in terms of these concepts. This is much stronger than simple tf-idf, as it leverages the covariance between terms to detect document similarity even when explicit term overlap is low. 
+The simple approach of tf-idf has its limitations. In particular, it is not good at detecting synonyms or alternate spellings of terms. To get around this I wrote an alternate script [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py) that [lemmatizes](http://en.wikipedia.org/wiki/Lemmatisation) terms using [NLTK](http://www.nltk.org/) and performs [latent semantic indexing](http://en.wikipedia.org/wiki/Latent_semantic_indexing) using the [Gensim](http://radimrehurek.com/gensim/index.html) package. Latent semantic indexing (also known as latent semantic analysis) applies [singular value decomposition](http://en.wikipedia.org/wiki/Singular_value_decomposition) on the term-document matrix to extract meaningful "concepts" (read: eigenvectors), and re-defines each document in terms of these concepts. This is much stronger than simple tf-idf, as it leverages the covariance between terms to detect document similarity even when explicit term overlap is low. 
 
 To display the 5 most similar shops based on LSI, first install [NLTK](http://www.nltk.org/) and [Gensim](http://radimrehurek.com/gensim/index.html) libraries, and then run [get_similar_shops_lsi.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops_lsi.py)
 
     python get_similar_shops_lsi.py "shops.json"
+    
+This script also accepts additional treasury and "details" arguments just like [get_similar_shops.py](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/get_similar_shops.py) does.
 
 ## Results
 
-I ran both the tf-idf technique and the LSI technique on a sample of 300 shops, and they produced positive results. The similarity scores from LSI were markedly high between shops with obvious similarities, but dropped off quickly as you went down the list. This often appeared to correspond conceptually to the drop-off of meaningful similarity between shops on each list. 
+I ran both the tf-idf technique and the LSI technique on a sample of 300 shops, and they produced positive results. The similarity scores from LSI were markedly high between shops with obvious similarities, but dropped off quickly as the list went down. This often appeared to correspond conceptually to the drop-off of meaningful similarity between shops on each list. 
 
 For example, the shop LittleFuzzyBaby (which sells baby blankets) scored a 91.6% similarity with SweetMinkyBaby, which also sells baby blankets. The next 4 shops in the top five sell other baby-oriented things, though not blankets specifically. Accordingly, these shops scored in the 47%-66% similarity range. This seems to make sense.
 
-_LSI example result, showing 4 highest weighted terms for each shop:_
+_LSI example result, showing 4 highest weighted terms for each shop (full results: [concise](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_lsi.txt) / [detailed](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_lsi_details.txt)):_
 
     LittleFuzzyBaby  (blanket 3.49)  (minky 3.24)  (hooded 3.09)  (camel 3.01)
     1. 0.916 SweetMinkyBaby  (minky 4.15)  (blanket 4.09)  (butler 3.42)  (amy 3.42)
@@ -68,7 +70,7 @@ _LSI example result, showing 4 highest weighted terms for each shop:_
 
 The tf-idf results had much lower, flatter similarity scores. The most similar shop in a list rarely exhibited a similarity score much greater than that of the fifth most similar. The tf-idf was still "correct" quite often, and exhibited top-five shop lists very much in line with those from the LSI results, though the tf-idf lists often would seemingly be in the wrong order, and with more apparent misses included. In the example below we see a similar result for LittleFuzzyBaby as in the LSI example, however the similarity scores here are much lower, with less of a gap between the winner (SweetMinkyBaby) and the rest. Also, a felt monster keychain shop called VsLittleMonsters somehow appeared as the second most similar shop to SweetMinkyBaby.
 
-_tf-idf example result, showing 4 highest weighted terms for each shop:_
+_tf-idf example result, showing 4 highest weighted terms for each shop (full results: [concise](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf.txt) / [detailed](https://github.com/jeffjeffjeffrey/etsy_similar_shops/blob/master/sample_output_tfidf_details.txt)):_
 
     LittleFuzzyBaby  (blanket 3.7)  (minky 3.4)  (hooded 3.22)  (camel 3.05)
     1. 0.127 SweetMinkyBaby  (minky 4.81)  (blankets 4.51)  (ruffle 3.87)  (butler 3.65)
@@ -77,6 +79,8 @@ _tf-idf example result, showing 4 highest weighted terms for each shop:_
     4. 0.091 MINICROP  (pom 3.35)  (pull 3.18)  (wristlet 3.1)  (braided 3.1)
     5. 0.088 MoreThanSprinkles  (burp 4.99)  (cloth 3.75)  (absorption 3.56)  (6ply 3.56)
 
-When testing the tf-idf method with smaller sample sizes (like 100) I noticed that shops with very few listings seemed to show up frequently in unexpected top-five lists. This may have been due to the choice of tf-idf weighting formulas, which may have inadvertently penalized or homogenized weights in longer documents. It may also be that shops with scarse information were more heavily weighted by secondary traits, like location or various listing enums that I included in the bag of words. 
+When testing the tf-idf method with smaller sample sizes (like 100) I noticed that shops with very few listings seemed to show up frequently in unexpected top-five lists. This may have been due to the choice of tf-idf weighting formulas, which may have inadvertently penalized or homogenized weights in longer documents. It may also be that shops with scant information were more heavily weighted by secondary traits, like location or various listing enums that I included in the bag of words. 
 
 A larger sample size and different choices for some of the parameters along the way might help improve this model. Access to user site usage data could also be greatly helpful toward measuring the "correctness" of these similarity results. 
+
+Overall, the bag-of-words tf-idf model performed decently for its simplicity, but the beautiful LSI algorithm stole the show with its consistently sensible, almost intuitive results.
