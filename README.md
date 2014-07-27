@@ -2,7 +2,7 @@
 
 ## Motivation
 
-The goal of this project was to be able to reasonably determine the five most similar shops for each given shop in an Etsy shop sample. This is the sort of tool that would have immediate use on the Etsy site. Users who spend a lot of time looking at certain shops could be shown other similar suggested shops to check out. Owners of similar shops could more easily find each other for forming Etsy teams. The categories within Etsy's shop-by-category system could evolve with changing trends through observation and clustering of shops by similarity. The list goes on!
+The goal of this project was to be able to reasonably determine the five most similar shops for each given shop in an Etsy shop sample. This is the sort of tool that would have immediate use on the Etsy site. Users who spend a lot of time looking at certain shops could be shown other similar suggested shops to check out. Owners of similar shops could more easily find each other for forming Etsy teams. The categories within Etsy's shop-by-category system could evolve with changing trends through observation and clustering of shops by similarity. The similarity engine could be incorporated into search to help return shops similar to users' search queries. The list goes on!
 
 ## The data
 
