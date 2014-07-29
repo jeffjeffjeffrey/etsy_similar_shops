@@ -18,6 +18,8 @@ To download 5000 active shops and then save relevant data for a sample of 300, o
     
 This will output to a file shops.json.
 
+Note: make sure to insert your own API key in the top of this script.
+
 #### Treasury trouble 
 
 Treasury information was tricky to obtain because there was no direct API for accessing treasuries by a contained listing. To get around this I wrote scripts to download all available treasuries and store that information in two hashes for quick look-ups. Unfortunately, even after downloading all 25,000 publicly available treasuries, I was unable to find a random sample of active shops with any listings found in those treasuries.
